@@ -1,12 +1,34 @@
 import { useEffect, useState } from "react";
-import { dummyCreationData } from "../assets/assets";
-import { Gem, Sparkles } from "lucide-react";
-import  {Protect} from "@clerk/clerk-react"
+import { toast } from "react-hot-toast";
+import { LoaderCircle, Gem, Sparkles } from "lucide-react";
+import { Protect, useAuth } from "@clerk/clerk-react";
 import CreationItem from "../components/CreationItem";
+import axios from "axios";
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 const Dashboard = () => {
   const [creations, setCreations] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { getToken } = useAuth();
   const getDashboardData = async () => {
-    setCreations(dummyCreationData);
+    try {
+      setIsLoading(true);
+      const { data } = await axios.get("/api/user/get-user-creations", {
+        headers: {
+          Authorization: `Bearer ${await getToken()}`,
+        },
+      });
+
+      if (data.success) {
+        setCreations(data.creations);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error(error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -42,13 +64,18 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <p className="mt-6 mb-4">Recent Creations</p>
-        {
-          creations.map((item) => <CreationItem key={item.id} item={item}/> )
-        }
-
-      </div>
+      {!isLoading && creations.length > 0 ? (
+        <div className="space-y-3">
+          <p className="mt-6 mb-4">Recent Creations</p>
+          {creations.map((item) => (
+            <CreationItem key={item.id} item={item} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-3/4">
+          <LoaderCircle className="w-20 h-20 animate-spin" />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,17 +1,56 @@
-import {useState} from 'react'
-import {Sparkles, Edit, Hash} from "lucide-react"
+import { useState } from "react";
+import { Sparkles, Hash,LoaderCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
+import Markdown from "react-markdown";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
 const BlogTitles = () => {
-   const blogCategories = [
-    'General','Technology','Business', 'Health', 'Lifestyle','Education','Travel','Food'
-    ];
-    const [selectedCategory, setSelectedCategory] = useState(blogCategories[0]);
-    const [input, setInput] = useState("");
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-    };
+  const blogCategories = [
+    "General",
+    "Technology",
+    "Business",
+    "Health",
+    "Lifestyle",
+    "Education",
+    "Travel",
+    "Food",
+  ];
+  const [selectedCategory, setSelectedCategory] = useState(blogCategories[0]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState("");
+  const { getToken } = useAuth();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsLoading(true);
+      const prompt = `Schreibe einen Blogtitel zum Stichwort ${input} in der Kategorie ${selectedCategory}.`;
+      const { data } = await axios.post(
+        "/api/ai/generate-blog-title",
+        { prompt },
+        {
+          headers: {
+            Authorization: `Bearer ${await getToken()}`,
+          },
+        }
+      );
+      if (data.success) {
+        setContent(data.content);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error(error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-      <div className="h-full overflow-y-scroll p-6 flex items-start flex-wrap gap-4 text-slate-700">
+    <div className="h-full overflow-y-scroll p-6 flex items-start flex-wrap gap-4 text-slate-700">
       {/* Left col */}
       <form
         onSubmit={handleSubmit}
@@ -47,9 +86,23 @@ const BlogTitles = () => {
           ))}
         </div>
         <br />
-        <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#C341F6] to-[#8E37EB] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101">
-          <Hash className="w-5" />
-         Titel generieren
+        <button
+          disabled={isLoading}
+          className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#C341F6] to-[#8E37EB] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101 ${
+            isLoading ? "cursor-not-allowed" : ""
+          }`}
+        >
+          {isLoading ? (
+            <>
+              <LoaderCircle className="w-5 animate-spin" />{" "}
+              <Hash className="w-5" /> Titel generieren...
+            </>
+          ) : (
+            <>
+              <Hash className="w-5" />
+              Titel generieren
+            </>
+          )}
         </button>
       </form>
       {/* Right col */}
@@ -58,18 +111,26 @@ const BlogTitles = () => {
           <Hash className="w-5 h-5 text-[#8E37EB]" />
           <h1 className="text-xl font-semibold">Generierte Title</h1>
         </div>
-        <div className="flex-1 flex justify-center items-center">
-          <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
-            <Hash className="w-9 h-9 cursor-pointer" />
-            <p>
-              Gib ein Thema ein und klicke auf „Titel generieren“, um zu
-              starten.
-            </p>
+        {!content ? (
+          <div className="flex-1 flex justify-center items-center">
+            <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
+              <Hash className="w-9 h-9 cursor-pointer" />
+              <p>
+                Gib ein Thema ein und klicke auf „Titel generieren“, um zu
+                starten.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-3 h-full overflow-y-scroll text-sm text-slate-600">
+            <div className="reset-tw">
+              <Markdown>{content}</Markdown>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default BlogTitles
+export default BlogTitles;

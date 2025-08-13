@@ -30,7 +30,7 @@ const CreationItem = ({ item }) => {
               />
             </div>
           ) : (
-            <div>
+            <div className="reset-tw">
               <Markdown>{item.content}</Markdown>
             </div>
           )}

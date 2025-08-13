@@ -1,19 +1,56 @@
-import {useState}from 'react'
-import { Hash,Sparkles,Image } from 'lucide-react';
+import { useState } from "react";
+import { Hash, Sparkles, Image,LoaderCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
+import Markdown from "react-markdown";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
 const GenerateImages = () => {
   const imageStyle = [
-    'Realistic', 'Ghibili Style', 'Anime Style', 'Cartoon style', 'Fantasy style',
-    'Realistic style', '3D style', 'Portrait style'
-    ];
-    const [selectedStyle, setSelectedStyle] = useState(imageStyle[0]);
-    const [input, setInput] = useState("");
-    const [publish, setPublish] = useState(false);
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-    };
+    "Realistic",
+    "Ghibili Style",
+    "Anime Style",
+    "Cartoon style",
+    "Fantasy style",
+    "Realistic style",
+    "3D style",
+    "Portrait style",
+  ];
+  const [selectedStyle, setSelectedStyle] = useState(imageStyle[0]);
+  const [input, setInput] = useState("");
+  const [publish, setPublish] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState("");
+  const { getToken } = useAuth();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsLoading(true);
+      const prompt = `Erzeuge ein Bild von ${input} im Stil von ${selectedStyle}.`;
+      const { data } = await axios.post(
+        "/api/ai/generate-image",
+        { prompt, publish: `${publish}` },
+        {
+          headers: {
+            Authorization: `Bearer ${await getToken()}`,
+          },
+        }
+      );
+      if (data.success) {
+        setContent(data.content);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error(error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
-      <div className="h-full overflow-y-scroll p-6 flex items-start flex-wrap gap-4 text-slate-700">
+    <div className="h-full overflow-y-scroll p-6 flex items-start flex-wrap gap-4 text-slate-700">
       {/* Left col */}
       <form
         onSubmit={handleSubmit}
@@ -50,22 +87,39 @@ const GenerateImages = () => {
           ))}
         </div>
         <div className="my-6 flex items-center gap-2">
-            <label className='relative cursor-pointer'>
-              <input type="checkbox" onChange={(e) => setPublish(e.target.checked)} checked={publish} className='sr-only peer'/>
-              <div className='w-9 h-5 bg-slate-300 rounded-full peer-checked:bg-green-500 transition'> </div>
-                <span className='absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition peer-checked:translate-x-4'>
-
-                </span>
-             
-            </label>
-               <p className='text-sm'>
-                  Dieses Bild offentlich machen
-                </p>
+          <label className="relative cursor-pointer">
+            <input
+              type="checkbox"
+              onChange={(e) => setPublish(e.target.checked)}
+              checked={publish}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-slate-300 rounded-full peer-checked:bg-green-500 transition">
+              {" "}
+            </div>
+            <span className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition peer-checked:translate-x-4"></span>
+          </label>
+          <p className="text-sm">Dieses Bild offentlich machen</p>
         </div>
         <br />
-        <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#41f6ab] to-[#00AD25] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101">
-          <Image className="w-5" />
-         Bilder generieren
+        <button
+          disabled={isLoading}
+          className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#41f6ab] to-[#00AD25] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101 ${
+            isLoading ? "cursor-not-allowed" : ""
+          }`}
+        >
+          {!isLoading ? (
+            <>
+              <Image className="w-5" />
+              Bilder generieren
+            </>
+          ) : (
+            <>
+              <LoaderCircle className="animate-spin w-5" />
+              <Image className="w-5" />
+              Bilder generieren....
+            </>
+          )}
         </button>
       </form>
       {/* Right col */}
@@ -74,17 +128,24 @@ const GenerateImages = () => {
           <Hash className="w-5 h-5 text-[#00AD25]" />
           <h1 className="text-xl font-semibold">Generierte Bilder</h1>
         </div>
-        <div className="flex-1 flex justify-center items-center">
-          <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
-            <Image className="w-9 h-9 cursor-pointer" />
-            <p>
-              Gib ein Thema ein und klicke auf „Bilder generieren“, um zu
-              starten.
-            </p>
+        {!content ? (
+          <div className="flex-1 flex justify-center items-center">
+            <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
+              <Image className="w-9 h-9 cursor-pointer" />
+              <p>
+                Gib ein Thema ein und klicke auf „Bilder generieren“, um zu
+                starten.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-3 h-full">
+            <img src={content} alt="image" className="w-full h-full object-cover" />
+          </div>
+        )}
       </div>
-    </div>)
-}
+    </div>
+  );
+};
 
-export default GenerateImages
+export default GenerateImages;

@@ -1,5 +1,10 @@
-import React, { useState } from "react";
-import { Edit, Sparkles } from "lucide-react";
+import  { useState } from "react";
+import { Edit, LoaderCircle, Sparkles } from "lucide-react";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
+import { toast } from "react-hot-toast";
+import Markdown from "react-markdown";
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
 const WriteArticle = () => {
   const articleLength = [
@@ -18,8 +23,35 @@ const WriteArticle = () => {
   ];
   const [selectedLength, setSelectedLength] = useState(articleLength[0]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState("");
+  const { getToken } = useAuth();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    try {
+      setIsLoading(true);
+      const prompt = `Schreibe einen Artikel über ${input} mit einer Länge von ${selectedLength.length} Wörtern.`;
+      const { data } = await axios.post(
+        "/api/ai/generate-article",
+        { prompt, length: selectedLength.length },
+        {
+          headers: {
+            Authorization: `Bearer ${await getToken()}`,
+          },
+        }
+      );
+      if (data.success) {
+        setContent(data.content);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error(error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,9 +91,23 @@ const WriteArticle = () => {
           ))}
         </div>
         <br />
-        <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#226BFF] to-[#65ADFF] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101">
-          <Edit className="w-5" />
-          Artikel generieren
+        <button
+          disabled={isLoading}
+          className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#226BFF] to-[#65ADFF] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer hover:scale-101 ${
+            isLoading ? "cursor-not-allowed" : ""
+          }`}
+        >
+          {!isLoading ? (
+            <>
+              <Edit className="w-5" />
+              Artikel generieren
+            </>
+          ) : (
+            <>
+              <LoaderCircle className="w-5 animate-spin" /> Artikel
+              generierer....
+            </>
+          )}
         </button>
       </form>
       {/* Right col */}
@@ -70,15 +116,24 @@ const WriteArticle = () => {
           <Edit className="w-5 h-5 text-[#4A7AFF]" />
           <h1 className="text-xl font-semibold">Generierte Artikel</h1>
         </div>
-        <div className="flex-1 flex justify-center items-center">
-          <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
-            <Edit className="w-9 h-9 cursor-pointer" />
-            <p>
-              Gib ein Thema ein und klicke auf „Artikel generieren“, um zu
-              starten.
-            </p>
+
+        {!content ? (
+          <div className="flex-1 flex justify-center items-center">
+            <div className="text-sm flex flex-col items-center gap-5 text-gray-400">
+              <Edit className="w-9 h-9 cursor-pointer" />
+              <p>
+                Gib ein Thema ein und klicke auf „Artikel generieren“, um zu
+                starten.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-3 h-full overflow-y-scroll text-sm text-slate-600">
+            <div className="reset-tw">
+              <Markdown>{content}</Markdown>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
